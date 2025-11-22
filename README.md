@@ -9,6 +9,14 @@ Ethical Data Exchange is a modern web application that enables users to buy and 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)](https://tailwindcss.com)
 
+![Screenshot 1](screen/Screenshot%202025-11-22%20203809.png)
+
+![Screenshot 2](screen/Screenshot%202025-11-22%20203828.png)
+
+![Screenshot 3](screen/Screenshot%202025-11-22%20203850.png)
+
+![Screenshot 4](screen/Screenshot%202025-11-22%20203907.png)
+
 ---
 
 ## 🎯 What is This Project?
