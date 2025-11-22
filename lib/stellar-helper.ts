@@ -14,7 +14,7 @@ import {
 export class StellarHelper {
   private server: StellarSdk.Horizon.Server;
   private networkPassphrase: string;
-  private kit: StellarWalletsKit;
+  private kit: StellarWalletsKit | null = null;
   private network: WalletNetwork;
   private publicKey: string | null = null;
 
@@ -33,12 +33,25 @@ export class StellarHelper {
       ? WalletNetwork.TESTNET 
       : WalletNetwork.PUBLIC;
 
-    // Stellar Wallets Kit'i initialize et
-    this.kit = new StellarWalletsKit({
-      network: this.network,
-      selectedWalletId: FREIGHTER_ID,
-      modules: allowAllModules(),
-    });
+    // Stellar Wallets Kit'i lazy initialize et (sadece client-side'da)
+    // Don't initialize here to avoid SSR issues
+  }
+
+  private getKit(): StellarWalletsKit {
+    // Only initialize kit on client-side (browser)
+    if (typeof window === 'undefined') {
+      throw new Error('StellarWalletsKit can only be used in the browser');
+    }
+    
+    if (!this.kit) {
+      this.kit = new StellarWalletsKit({
+        network: this.network,
+        selectedWalletId: FREIGHTER_ID,
+        modules: allowAllModules(),
+      });
+    }
+    
+    return this.kit;
   }
 
   isFreighterInstalled(): boolean {
@@ -47,16 +60,18 @@ export class StellarHelper {
 
   async connectWallet(): Promise<string> {
     try {
+      const kit = this.getKit();
+      
       // Wallet modal'ı aç ve wallet seçildiğinde adresi al
-      await this.kit.openModal({
+      await kit.openModal({
         onWalletSelected: async (option) => {
           console.log('Wallet selected:', option.id);
-          this.kit.setWallet(option.id);
+          kit.setWallet(option.id);
         }
       });
 
       // Seçilen wallet'ın adresini al
-      const { address } = await this.kit.getAddress();
+      const { address } = await kit.getAddress();
 
       if (!address) {
         throw new Error('Wallet bağlanamadı');
@@ -120,7 +135,8 @@ export class StellarHelper {
     const transaction = transactionBuilder.setTimeout(180).build();
 
     // Wallet Kit ile imzala
-    const { signedTxXdr } = await this.kit.signTransaction(transaction.toXDR(), {
+    const kit = this.getKit();
+    const { signedTxXdr } = await kit.signTransaction(transaction.toXDR(), {
       networkPassphrase: this.networkPassphrase,
     });
 
@@ -189,4 +205,27 @@ export class StellarHelper {
   }
 }
 
-export const stellar = new StellarHelper('testnet');
+// Only create instance on client-side to avoid SSR issues
+let stellarInstance: StellarHelper | null = null;
+
+function getStellarInstance(): StellarHelper {
+  if (typeof window === 'undefined') {
+    throw new Error('StellarHelper can only be used in client components. Make sure your component has "use client" directive.');
+  }
+  
+  if (!stellarInstance) {
+    stellarInstance = new StellarHelper('testnet');
+  }
+  
+  return stellarInstance;
+}
+
+// Export a getter that lazily creates the instance only when accessed
+// This prevents SSR issues by not creating the instance at module load time
+export const stellar = new Proxy({} as StellarHelper, {
+  get(_target, prop) {
+    const instance = getStellarInstance();
+    const value = (instance as any)[prop];
+    return typeof value === 'function' ? value.bind(instance) : value;
+  }
+});
